@@ -68,26 +68,10 @@ def fetchAndClean(dataPath):
 def saveSelectFeatures(df, features, path):
 	df[features].to_csv(path)
 
-def addIDs(df2017, otherDF):
+def addIDs(df2017, lookup):
 	# imperfect matching, but the approach is to consider two players equal if
 	# they have the same last name, nationality. if any duplicates found, 
 	# throw these out
-	lookup = defaultdict(int)
-	for _, row in otherDF.iterrows():
-		try:
-			lastName = row.Name.split()[-1]
-			nationality = row.Nationality
-			club = row.Club.split()[0]
-		except:
-			continue
-
-		key = frozenset([lastName, nationality, club])
-		if key in lookup:
-			# not unique :( let's just pretend this player doesn't exist
-			lookup[key] = -1
-		else:
-			lookup[key] = row.ID
-
 	for index, row in df2017.iterrows():
 		try:
 			lastName = row.Name.split()[-1]
@@ -101,6 +85,45 @@ def addIDs(df2017, otherDF):
 			df2017.at[index, 'ID'] = lookup[key]
 
 	return df2017
+
+def buildLookup(df2018, df2019):
+	lookup1 = defaultdict(int)
+	for _, row in df2018.iterrows():
+		try:
+			lastName = row.Name.split()[-1]
+			nationality = row.Nationality
+			club = row.Club.split()[0]
+		except:
+			continue
+
+		key = frozenset([lastName, nationality, club])
+		if key in lookup1:
+			# not unique :( let's just pretend this player doesn't exist
+			lookup1[key] = -1
+		else:
+			lookup1[key] = row.ID
+
+	lookup2 = defaultdict(int)
+	for _, row in df2019.iterrows():
+		try:
+			lastName = row.Name.split()[-1]
+			nationality = row.Nationality
+			club = row.Club.split()[0]
+		except:
+			continue
+
+		key = frozenset([lastName, nationality, club])
+		if key in lookup2:
+			# not unique :( let's just pretend this player doesn't exist
+			lookup2[key] = -1
+		else:
+			lookup2[key] = row.ID
+
+	allKeys = set(lookup1.keys()) | set(lookup2.keys())
+	uniqueCommonIDs = set(lookup1.values()) & set(lookup2.values())
+	combined = { k: max(lookup1[k], lookup2[k]) for k in allKeys if lookup1[k] in uniqueCommonIDs or lookup2[k] in uniqueCommonIDs}
+	print(len(combined.keys()))
+	return combined
 
 
 def prune(df2017, df2018, df2019):
@@ -121,8 +144,8 @@ print("2019 shape: ", df2019.shape)
 
 # necessary because 2017 dataset doesn't include IDs
 df2017.insert(0, 'ID', -1) # add ID column with all set to -1
-df2017 = addIDs(df2017, df2018)
-df2017 = addIDs(df2017, df2019)
+lookup = buildLookup(df2017, df2018)
+df2017 = addIDs(df2017, lookup)
 
 success = df2017.loc[df2017['ID'] != -1]
 print('Num IDs matched in 2017 dataset {}'.format(success.shape))
