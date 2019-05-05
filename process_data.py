@@ -68,6 +68,7 @@ def fetchAndClean(dataPath):
 def addIDs(df2017, lookup):
 	# imperfect matching, but the approach is to consider two players equal if
 	# they have the same first initial, last name, nationality.
+	idsUsed = set()
 	for index, row in df2017.iterrows():
 		try:
 			firstInitial = row.Name.split()[0][0]
@@ -77,8 +78,9 @@ def addIDs(df2017, lookup):
 			continue
 
 		key = frozenset([firstInitial, lastName, nationality])
-		if key in lookup:
+		if key in lookup and lookup[key] not in idsUsed:
 			df2017.at[index, 'ID'] = lookup[key]
+			idsUsed.add(lookup[key])
 
 	return df2017
 
@@ -92,7 +94,6 @@ def buildLookup(df, lookup=defaultdict(set)):
 			lastName = row.Name.split()[-1]
 			nationality = row.Nationality
 		except:
-			print('excpetion')
 			continue
 
 		key = frozenset([firstInitial, lastName, nationality])
@@ -116,6 +117,29 @@ print("2017 shape: ", df2017.shape)
 print("2018 shape: ", df2018.shape)
 print("2019 shape: ", df2019.shape)
 
+print('Removing features not present in all 3 datasets...')
+features2017 = set(df2017.columns)
+features2018 = set(df2018.columns)
+features2019 = set(df2019.columns)
+
+commonFeatures = features2017 & features2018 & features2019
+
+commonFeatures = list(commonFeatures)
+df2017 = df2017[commonFeatures].dropna()
+df2018 = df2018[commonFeatures + ['ID']].dropna()
+df2019 = df2019[commonFeatures + ['ID']].dropna()
+print("reduced 2017 shape: ", df2017.shape)
+print("reduced 2018 shape: ", df2018.shape)
+print("reduced 2019 shape: ", df2019.shape)
+print('Features: ', commonFeatures)
+
+# sadly, the same player is present in the dataset more than once
+# relatively small number though -- ~20 dups in 2018, 0 in 2019
+ids = df2018['ID']
+dupIDs = set(df2018[ids.isin(ids[ids.duplicated()])].ID)
+df2018 = df2018[~df2018.ID.isin(dupIDs)]
+print(df2018.shape)
+
 # necessary because 2017 dataset doesn't include IDs
 lookup = buildLookup(df2018)
 lookup = buildLookup(df2019, lookup)
@@ -135,29 +159,20 @@ withIDs2017 = df2017.loc[df2017['ID'] != -1]
 print('Num IDs added to 2017 dataset ', withIDs2017.shape[0])
 
 # remove any players that don't exist in all 3 datasets
-print("Removing players/features that aren't present in all 3 datasets...")
+print("Removing playersthat aren't present in all 3 datasets...")
 df2017, df2018, df2019 = prune(withIDs2017, df2018, df2019)
 
-features2017 = set(df2017.columns)
-features2018 = set(df2018.columns)
-features2019 = set(df2019.columns)
+## TODO: drop Name field when done spot checking data
+print("Finally, dropping unencoded features...")
+print('Unencoded features are: ', unencoded)
+df2017 = df2017.drop(unencoded, axis=1)
+df2018 = df2018.drop(unencoded, axis=1)
+df2019 = df2019.drop(unencoded, axis=1)
 
-commonFeatures = features2017 & features2018 & features2019
-for unencodedFeature in unencoded:
-	try:
-		commonFeatures.remove(unencodedFeature)
-	except KeyError as e:
-		print('KeyError: ', e)
+print("final 2017 shape: ", df2017.shape)
+print("final 2018 shape: ", df2018.shape)
+print("final 2019 shape: ", df2019.shape)
 
-commonFeatures = list(commonFeatures)
-df2017 = df2017[commonFeatures]
-df2018 = df2018[commonFeatures]
-df2019 = df2019[commonFeatures]
-print("pruned 2017 shape: ", df2017.shape)
-print("pruned 2018 shape: ", df2018.shape)
-print("pruned 2019 shape: ", df2019.shape)
-print('Features: ', commonFeatures)
-
-# df2017.to_csv('./data/2017CommonFeatures.csv')
-# df2018.to_csv('./data/2018CommonFeatures.csv')
-# df2019.to_csv('./data/2019CommonFeatures.csv')
+df2017.to_csv('./data/2017clean.csv')
+df2018.to_csv('./data/2018clean.csv')
+df2019.to_csv('./data/2019clean.csv')
