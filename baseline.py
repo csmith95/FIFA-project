@@ -50,7 +50,7 @@ dev_predictions_ridge = ridge_regression.predict(X_dev)
 print("\nRidge regression model mean squared error: %.2e" % mean_squared_error(y_dev, dev_predictions_ridge))
 print("Naive mean squared error: %.2e" % mean_squared_error(y_dev, [np.mean(y_train)] * len(y_dev)))
 
-Support vector regression
+# Support vector regression
 params = {'C': sp.stats.expon(scale=100), 'gamma': sp.stats.expon(scale=.1), 'kernel': ['rbf']}
 svr = SVR()
 random_search = RandomizedSearchCV(svr, param_distributions=params, n_iter=100, cv=5, iid=False)
