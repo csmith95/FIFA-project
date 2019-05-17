@@ -138,7 +138,6 @@ print('Features: ', commonFeatures)
 ids = df2018['ID']
 dupIDs = set(df2018[ids.isin(ids[ids.duplicated()])].ID)
 df2018 = df2018[~df2018.ID.isin(dupIDs)]
-print(df2018.shape)
 
 # necessary because 2017 dataset doesn't include IDs
 lookup = buildLookup(df2018)
