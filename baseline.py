@@ -56,7 +56,6 @@ for h in hSizes:
 
 ################## Predicting Player Improvement Trajectory Experiments ###############################
 print("\n\n" + "*"*10 + "Player Improvement Experiments" + "*"*10)
-y_improvement = []
 
 for player in clean_2018['ID']:
 	if name_to_rating_2018[player] < name_to_rating_2019[player]:
