@@ -16,7 +16,7 @@ features = [
 # these exists in all 3 but we haven't encoded them properly yet 
 # to use in model
 unencoded = [
-	'Club', 'Nationality', 'Position'
+	'Club', 'Nationality', 'Name', 'Position'
 ]
 
 # attributes we can only use for 2018-2019:
@@ -133,6 +133,16 @@ print("reduced 2018 shape: ", df2018.shape)
 print("reduced 2019 shape: ", df2019.shape)
 print('Features: ', commonFeatures)
 
+# build position encoding map, used later 
+# to encode position as one-hot vector
+positions = df2017['Position'].values.tolist() + \
+	df2018['Position'].values.tolist() + df2019['Position'].values.tolist()
+positionSet = set()
+for positions in positions:
+	p = positions.replace('/', ' ').strip().split()
+	positionSet |= set(p)
+positions = list(positionSet)
+
 # sadly, the same player is present in the dataset more than once
 # relatively small number though -- ~20 dups in 2018, 0 in 2019
 ids = df2018['ID']
@@ -161,6 +171,20 @@ print('Num IDs added to 2017 dataset ', withIDs2017.shape[0])
 print("Removing playersthat aren't present in all 3 datasets...")
 df2017, df2018, df2019 = prune(withIDs2017, df2018, df2019)
 
+# encode position as 1-hot vector
+
+def encodePosition(df, positions):
+	playerPositions = df['Position'].tolist()
+	playerPositions = [x.replace('/', ' ').strip().split()[0] for x in playerPositions]
+	for position in positions:
+		encodedPositions = [1 if position == p else 0 for p in playerPositions]
+		df.insert(df.shape[1], position, encodedPositions)
+	return df
+
+df2017 = encodePosition(df2017, positions)
+df2018 = encodePosition(df2018, positions)
+df2019 = encodePosition(df2019, positions)
+
 ## TODO: drop Name field when done spot checking data
 print("Finally, dropping unencoded features...")
 print('Unencoded features are: ', unencoded)
@@ -168,10 +192,15 @@ df2017 = df2017.drop(unencoded, axis=1)
 df2018 = df2018.drop(unencoded, axis=1)
 df2019 = df2019.drop(unencoded, axis=1)
 
+# fix +,- thing
+df2017 = df2017.applymap(lambda x: float(str(x).replace("+",'-').split('-')[0]))
+df2018 = df2018.applymap(lambda x: float(str(x).replace("+",'-').split('-')[0]))
+df2019 = df2019.applymap(lambda x: float(str(x).replace("+",'-').split('-')[0]))
+
 print("final 2017 shape: ", df2017.shape)
 print("final 2018 shape: ", df2018.shape)
 print("final 2019 shape: ", df2019.shape)
 
-df2017.to_csv('./data/2017clean.csv')
-df2018.to_csv('./data/2018clean.csv')
-df2019.to_csv('./data/2019clean.csv')
+df2017.to_csv('./data/2017clean.csv', index=False)
+df2018.to_csv('./data/2018clean.csv', index=False)
+df2019.to_csv('./data/2019clean.csv', index=False)
