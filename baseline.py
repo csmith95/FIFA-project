@@ -2,11 +2,13 @@ import pandas as pd
 import numpy as np
 import scipy as sp
 from sklearn.linear_model import LinearRegression, Ridge, LogisticRegression
-from sklearn.svm import SVR
+from sklearn.svm import SVR, SVC
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.model_selection import train_test_split, RandomizedSearchCV
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, classification_report
 from sklearn.neural_network import MLPClassifier
 from sklearn.neural_network import MLPRegressor
+from scipy.stats import mode
 
 clean_2018 = pd.read_csv('data/2018clean.csv', index_col=0)
 clean_2019 = pd.read_csv('data/2019clean.csv', index_col=0)
@@ -44,6 +46,20 @@ dev_predictions_ridge = ridge_regression.predict(X_dev)
 print("\nRidge regression model mean squared error: %.2e" % mean_squared_error(y_dev, dev_predictions_ridge))
 print("Naive mean squared error: %.2e" % mean_squared_error(y_dev, [np.mean(y_train)] * len(y_dev)))
 
+# Support Vector Machine Regression
+svr = SVR()
+svr.fit(X_train, y_train)
+dev_predictions_svr = svr.predict(X_dev)
+print("\nSVR model mean squared error: %.2e" % mean_squared_error(y_dev, dev_predictions_svr))
+print("Naive mean squared error: %.2e" % mean_squared_error(y_dev, [np.mean(y_train)] * len(y_dev)))
+
+# Random Forest Regression
+rfr = RandomForestRegressor()
+rfr.fit(X_train, y_train)
+dev_predictions_rfr = rfr.predict(X_dev)
+print("\nRandom Forest Regressor model mean squared error: %.2e" % mean_squared_error(y_dev, dev_predictions_rfr))
+print("Naive mean squared error: %.2e" % mean_squared_error(y_dev, [np.mean(y_train)] * len(y_dev)))
+
 # NN
 hSizes = [(100), (100, 150, 50), (150, 100, 50)] 
 for h in hSizes:
@@ -76,12 +92,30 @@ X_imp_dev, X_imp_test, y_imp_dev, y_imp_test = train_test_split(X_imp_test, y_im
 # print("\nSVR model mean squared error: %.2e" % mean_squared_error(y_dev, dev_predictions_svr))
 # print("Naive mean squared error: %.2e" % mean_squared_error(y_dev, [np.mean(y_train)] * len(y_dev)))
 
+print('Naive classifier performance:')
+print(classification_report(y_imp_dev, [mode(y_imp_train)[0]] * len(y_imp_dev)))
+
 # Logistic regression
 logistic_regression = LogisticRegression(solver='lbfgs', max_iter=500)
 logistic_regression.fit(X_imp_train, y_imp_train)
 dev_predictions_logistic = logistic_regression.predict(X_imp_dev)
-print("Logistic regression model mean squared error: %.2e" % mean_squared_error(y_imp_dev, dev_predictions_logistic))
-print("Naive mean squared error: %.2e" % mean_squared_error(y_imp_dev, [np.mean(y_imp_train)] * len(y_imp_dev)))
+print('Logistic regression classifier performance:')
+print(classification_report(y_imp_dev, dev_predictions_logistic))
+
+# Support Vector Machine Classifier
+svc = SVC()
+svc.fit(X_imp_train, y_imp_train)
+dev_predictions_svc = svc.predict(X_imp_dev)
+print('SVM classifier performance:')
+print(classification_report(y_imp_dev, dev_predictions_svc))
+
+
+# Random Forest Classifier
+rf = RandomForestClassifier()
+rf.fit(X_imp_train, y_imp_train)
+dev_predictions_rf = rf.predict(X_imp_dev)
+print('Random Forest classifier performance:')
+print(classification_report(y_imp_dev, dev_predictions_rf))
 
 # NN 
 hSizes = [(100), (100, 150, 50), (150, 100, 50)] 
@@ -89,7 +123,7 @@ for h in hSizes:
 	nn_model = MLPClassifier()
 	nn_model.fit(X_imp_train, y_imp_train)
 	dev_predictions_nn = nn_model.predict(X_dev)
-	print("\nNN model mean squared error: %.2e" % mean_squared_error(y_imp_dev, dev_predictions_nn))
+	print('Neural network classifier performance:')
+	print(classification_report(y_imp_dev, dev_predictions_nn))
 	print("Hidden layer sizes: {}".format(h))
-	print("Naive mean squared error: %.2e" % mean_squared_error(y_imp_dev, [np.mean(y_train)] * len(y_dev)))
 
