@@ -1,6 +1,7 @@
 import pandas
 import re
 from collections import defaultdict
+import numpy as np
 
 # these features exist in all 3 datasets
 features = [
@@ -201,6 +202,19 @@ print("final 2017 shape: ", df2017.shape)
 print("final 2018 shape: ", df2018.shape)
 print("final 2019 shape: ", df2019.shape)
 
-df2017.to_csv('./data/2017clean.csv', index=False)
-df2018.to_csv('./data/2018clean.csv', index=False)
-df2019.to_csv('./data/2019clean.csv', index=False)
+def stats(df, key):
+	print("{} Variance: {}".format(key, np.var(df['Overall'])))
+	print("{} Mean: {}".format(key, np.mean(df['Overall'])))
+	print("{} Median: {}".format(key, np.median(df['Overall'])))
+
+# print("="*20, " 2017 ", "="*20)
+# stats('Overall', df2017)
+# stats('', df2017)
+# print("="*20, " 2018 ", "="*20)
+# stats('Overall', df2018)
+# print("="*20, " 2019 ", "="*20)
+# stats('Overall', df2019)
+
+# df2017.to_csv('./data/2017clean.csv', index=False)
+# df2018.to_csv('./data/2018clean.csv', index=False)
+# df2019.to_csv('./data/2019clean.csv', index=False)

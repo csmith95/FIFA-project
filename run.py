@@ -9,42 +9,47 @@ def create_placeholders(n, m):
     Y = tf.placeholder(tf.float32, shape=(1, None), name = 'Y')
     return X, Y
 
-def initialize_parameters():    
-    W1 = tf.get_variable("W1", [25,62], initializer = tf.contrib.layers.xavier_initializer(seed = 1))
-    b1 = tf.get_variable("b1", [25,1], initializer = tf.zeros_initializer())
-    W2 = tf.get_variable("W2", [12,25], initializer = tf.contrib.layers.xavier_initializer(seed = 1))
-    b2 = tf.get_variable("b2", [12,1], initializer = tf.zeros_initializer())
-    W3 = tf.get_variable("W3", [1,12], initializer = tf.contrib.layers.xavier_initializer(seed = 1))
-    b3 = tf.get_variable("b3", [1,1], initializer = tf.zeros_initializer())
+def initialize_parameters(layers):
 
-    parameters = {"W1": W1,
-                  "b1": b1,
-                  "W2": W2,
-                  "b2": b2,
-                  "W3": W3,
-                  "b3": b3 }
+	parameters = {}
+	prevDims = 62
+	for layerNum, numUnits in enumerate(layers):
+		parameters['W'+str(layerNum)] = tf.get_variable("W"+str(layerNum), [numUnits,prevDims], initializer = tf.contrib.layers.xavier_initializer(seed = 1))
+		parameters['b'+str(layerNum)] = tf.get_variable("b"+str(layerNum), [numUnits, 1], initializer = tf.zeros_initializer())
+		prevDims = numUnits
+
+	# output layer
+	parameters['W'+str(len(layers))] = tf.get_variable("W"+str(len(layers)), [1, prevDims], initializer = tf.contrib.layers.xavier_initializer(seed = 1))
+	parameters['b'+str(len(layers))] = tf.get_variable("b"+str(len(layers)), [1, 1], initializer = tf.zeros_initializer())
+
+	return parameters
+
+def forward_propagation(X, params, nLayers, training=True):
     
-    return parameters
+    activation = X
+    for layerNum in range(nLayers):
+    	weight = params['W'+str(layerNum)]
+    	bias = params['b'+str(layerNum)]
+    	linear = tf.add(tf.matmul(weight, activation), bias)
+    	if layerNum != nLayers-1:
+    		b = tf.layers.batch_normalization(linear, axis=0, training=training)
+    		activation = tf.nn.relu(b)
+    		# activation = tf.layers.dropout(activation, rate=0.3, training=training)
+    	else:
+    		activation = linear
 
-def forward_propagation(X, parameters):
-    W1 = parameters['W1']
-    b1 = parameters['b1']
-    W2 = parameters['W2']
-    b2 = parameters['b2']
-    W3 = parameters['W3']
-    b3 = parameters['b3']
-    
-    Z1 = tf.add(tf.matmul(W1, X) , b1)                            
-    A1 = tf.nn.relu(Z1)
-    Z2 = tf.add(tf.matmul(W2, A1) , b2)
-    A2 = tf.nn.relu(Z2)
-    Z3 = tf.add(tf.matmul(W3, A2) , b3)
-    return Z3
+    return activation
 
-def compute_cost(predictions, Y):
+def compute_cost(predictions, Y, params):
 	logits = tf.transpose(predictions)
 	labels = tf.transpose(Y)
 	cost = tf.reduce_mean(tf.losses.sigmoid_cross_entropy(labels,logits=logits))
+
+	b = 2
+	reg = 0
+	for weight in ['W0', 'W1', 'W2', 'W3', 'W4', 'W5']:
+		reg += tf.nn.l2_loss(params[weight])
+	cost += b*reg
 
 	return cost
 
@@ -52,8 +57,8 @@ def random_mini_batch(X, Y, size):
 	indices = np.random.randint(0, X.shape[1], size)
 	return X[:, indices], Y[:,indices].reshape((1, size))
 
-def model(X_train, Y_train, X_test, Y_test, learning_rate = 1e-5,
-          num_epochs = 100, minibatch_size = 128, print_cost = True):
+def model(X_train, Y_train, X_dev, Y_dev, X_test, Y_test, lr = 1e-4, layers=[150, 100, 50, 25, 12],
+          num_epochs = 700, minibatch_size = 512, print_cost = True):
     """
     Implements a three-layer tensorflow neural network: LINEAR->RELU->LINEAR->RELU->LINEAR->SOFTMAX.
     
@@ -72,22 +77,31 @@ def model(X_train, Y_train, X_test, Y_test, learning_rate = 1e-5,
     """
     
     ops.reset_default_graph()                         # to be able to rerun the model without overwriting tf variables
-    (m, n) = X_train.shape                          # (n: num examples, m : num features)
-    costs = []                                        # To keep track of the cost
+    (m, n) = X_train.shape                            # (n: num examples, m : num features)
+    costs = []                                        # To drop track of the cost
+    trainAccs = []
+    devAccs = []
+    testAccs = []
     
     X, Y = create_placeholders(n, m)
 
     # Initialize parameters
-    parameters = initialize_parameters()
+    parameters = initialize_parameters(layers)
     
     # Forward propagation: Build the forward propagation in the tensorflow graph
-    predictions = forward_propagation(X, parameters)
+    nLayers = len(layers)+1
+    predictions = forward_propagation(X, parameters, nLayers)
     
     # Cost function: Add cost function to tensorflow graph
-    cost = compute_cost(predictions, Y)
+    cost = compute_cost(predictions, Y, parameters)
     
     # Backpropagation: Define the tensorflow optimizer. Use an AdamOptimizer.
-    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+    optimizer = tf.train.AdamOptimizer(learning_rate=lr).minimize(cost)
+
+    # To track accuracy
+    preds = tf.round(tf.sigmoid(forward_propagation(X, parameters, nLayers, training=False)))
+    correct_prediction = tf.equal(preds, Y)
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
     
     # Initialize all the variables
     init = tf.global_variables_initializer()
@@ -118,32 +132,26 @@ def model(X_train, Y_train, X_test, Y_test, learning_rate = 1e-5,
                 print ("Cost after epoch %i: %f" % (epoch, epoch_cost))
             if print_cost == True and epoch % 5 == 0:
                 costs.append(epoch_cost)
-        
+                trainAccs.append(accuracy.eval({X: X_train, Y: Y_train}))
+                devAccs.append(accuracy.eval({X: X_dev, Y: Y_dev}))
+                testAccs.append(accuracy.eval({X: X_test, Y: Y_test}))
 
-
-        # plot the cost
-        plt.plot(np.squeeze(costs))
-        plt.ylabel('cost')
-        plt.xlabel('iterations (per tens)')
-        plt.title("Learning rate =" + str(learning_rate))
-        plt.show()
-
-        # lets save the parameters in a variable
-        parameters = sess.run(parameters)
-        print ("Parameters have been trained!")
-
-        # Calculate the correct predictions
-        preds = tf.round(tf.sigmoid(forward_propagation(X, parameters)))
-        correct_prediction = tf.equal(preds, Y)
-
-        # Calculate accuracy on the test set
-        accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
 
         print ("Train Accuracy:", accuracy.eval({X: X_train, Y: Y_train}))
+        print ("Dev Accuracy:", accuracy.eval({X: X_dev, Y: Y_dev}))
         print ("Test Accuracy:", accuracy.eval({X: X_test, Y: Y_test}))
-        
-        return parameters
 
+    # plot the cost
+    plt.plot(trainAccs)
+    plt.plot(devAccs)
+    plt.plot(testAccs)
+    plt.ylabel('Cost')
+    plt.xlabel('Iterations (every 5 epochs)')
+    plt.title('5-Layer NN Accuracy for Improvement Classification with BN/L2 Reg')
+    plt.legend(['Train Accuracy', 'Dev Accuracy', 'Test Accuracy'])
+    plt.show()
+
+    return parameters
 
 # execution starts here
 
@@ -161,16 +169,37 @@ def getImprovementLabels(filename1, filename2):
 	labels = [1 if ID_to_rating_2[player] > ID_to_rating_1[player] else 0 for player in df1['ID']]
 	return np.asarray(labels)
 
-X_train = getInputData('data/2017clean.csv')
-Y_train = getImprovementLabels('data/2017clean.csv', 'data/2018clean.csv').reshape((1, -1))
+# X_train = getInputData('data/2017clean.csv')
+# Y_train = getImprovementLabels('data/2017clean.csv', 'data/2018clean.csv').reshape((1, -1))
 
-X_test = getInputData('data/2018clean.csv')
-Y_test = getImprovementLabels('data/2018clean.csv', 'data/2019clean.csv').reshape((1, -1))
+# X_test = getInputData('data/2018clean.csv')
+# Y_test = getImprovementLabels('data/2018clean.csv', 'data/2019clean.csv').reshape((1, -1))
 
-n_x = X_test.shape[0]
-dev_indices = np.random.randint(0, n_x, int(n_x * 0.5))
+# n_x = X_test.shape[0]
+# dev_indices = np.random.choice(list(range(n_x)), size=int(n_x * 0.5), replace=False)
 
-X_dev = X_test[dev_indices, :]
-Y_dev = Y_test[:,dev_indices].reshape((1, -1))
+# X_dev = X_test[dev_indices, :]
+# Y_dev = Y_test[:,dev_indices].reshape((1, -1))
 
-parameters = model(X_train.T, Y_train, X_dev.T, Y_dev)
+# test_indices = list(set(range(n_x)) - set(dev_indices))
+
+# X_test = X_test[test_indices, :]
+# Y_test = Y_test[:,test_indices].reshape((1, -1))
+
+X_train = np.loadtxt('data/X_train_classification.txt')
+Y_train = np.loadtxt('data/Y_train_classification.txt').reshape((1,-1))
+X_dev = np.loadtxt('data/X_dev_classification.txt')
+Y_dev = np.loadtxt('data/Y_dev_classification.txt').reshape((1,-1))
+X_test = np.loadtxt('data/X_test_classification.txt')
+Y_test = np.loadtxt('data/Y_test_classification.txt').reshape((1,-1))
+
+# def stats(a):
+#     print("Variance: ", np.var(a))
+#     print("Mean: ", np.mean(a))
+
+# stats(Y_train)
+# stats(Y_dev)
+# stats(Y_test)
+
+parameters = model(X_train.T, Y_train, X_dev.T, Y_dev, X_test.T, Y_test)
+
