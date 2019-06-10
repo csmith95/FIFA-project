@@ -3,6 +3,7 @@ from tensorflow.python.framework import ops
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from sklearn.metrics import classification_report, confusion_matrix
 
 def create_placeholders(n, m):
     X = tf.placeholder(tf.float32, shape=(m, None), name = 'X')
@@ -58,7 +59,7 @@ def random_mini_batch(X, Y, size):
 	return X[:, indices], Y[:,indices].reshape((1, size))
 
 def model(X_train, Y_train, X_dev, Y_dev, X_test, Y_test, lr = 1e-4, layers=[150, 100, 50, 25, 12],
-          num_epochs = 700, minibatch_size = 512, print_cost = True):
+          num_epochs = 900, minibatch_size = 512, print_cost = True):
     """
     Implements a three-layer tensorflow neural network: LINEAR->RELU->LINEAR->RELU->LINEAR->SOFTMAX.
     
@@ -141,15 +142,16 @@ def model(X_train, Y_train, X_dev, Y_dev, X_test, Y_test, lr = 1e-4, layers=[150
         print ("Dev Accuracy:", accuracy.eval({X: X_dev, Y: Y_dev}))
         print ("Test Accuracy:", accuracy.eval({X: X_test, Y: Y_test}))
 
+
     # plot the cost
-    plt.plot(trainAccs)
-    plt.plot(devAccs)
-    plt.plot(testAccs)
-    plt.ylabel('Cost')
-    plt.xlabel('Iterations (every 5 epochs)')
-    plt.title('5-Layer NN Accuracy for Improvement Classification with BN/L2 Reg')
-    plt.legend(['Train Accuracy', 'Dev Accuracy', 'Test Accuracy'])
-    plt.show()
+    # plt.plot(trainAccs)
+    # plt.plot(devAccs)
+    # plt.plot(testAccs)
+    # plt.ylabel('Cost')
+    # plt.xlabel('Iterations (every 5 epochs)')
+    # plt.title('5-Layer NN Accuracy for Improvement Classification with BN/L2 Reg')
+    # plt.legend(['Train Accuracy', 'Dev Accuracy', 'Test Accuracy'])
+    # plt.show()
 
     return parameters
 

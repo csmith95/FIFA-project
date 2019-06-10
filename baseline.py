@@ -5,7 +5,7 @@ from sklearn.linear_model import LinearRegression, Ridge, LogisticRegression
 from sklearn.svm import SVR, SVC
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.model_selection import train_test_split, RandomizedSearchCV
-from sklearn.metrics import mean_squared_error, classification_report, accuracy_score
+from sklearn.metrics import mean_squared_error, classification_report, accuracy_score, confusion_matrix
 from sklearn.neural_network import MLPClassifier
 from sklearn.neural_network import MLPRegressor
 from scipy.stats import mode
@@ -122,6 +122,9 @@ print(accuracy_score(y_imp_test, guess * len(y_imp_test)))
 logistic_regression = LogisticRegression(solver='lbfgs', max_iter=500)
 logistic_regression.fit(X_imp_train, y_imp_train)
 stats(X_imp_train, y_imp_train, X_imp_dev, y_imp_dev, X_imp_test, y_imp_test, logistic_regression, "Logistic Regression")
+
+cm = confusion_matrix(y_imp_test, logistic_regression.predict(X_imp_test))
+np.savetxt('data/confusion_matrix.txt', cm)
 
 # Support Vector Machine Classifier
 svc = SVC()
