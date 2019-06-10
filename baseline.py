@@ -27,7 +27,8 @@ from scipy.stats import mode
 # ################## Predicting Player Value Experiments ###################
 
 # X = merged.drop(['ID', 'Value', 'Name'], axis=1)
-# y = merged.Value
+# logs = np.log(merged.Value + 0.000000000001)
+# y = logs + np.min(logs)
 
 # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1)
 # X_dev, X_test, y_dev, y_test = train_test_split(X_test, y_test, test_size=0.5, random_state=1)
